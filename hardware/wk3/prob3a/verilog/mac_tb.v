@@ -1,0 +1,183 @@
+// Created by prof. Mingu Kang @VVIP Lab in UCSD ECE department
+// Please do not spread this code without permission 
+
+
+module mac_tb;
+
+parameter bw = 4;
+parameter psum_bw = 16;
+parameter array_length = 4;
+
+reg clk = 0;
+reg reset = 0;
+
+reg  [array_length-1:0][bw-1:0] a;
+reg  [array_length-1:0][bw-1:0] b;
+reg  [psum_bw-1:0] c;
+wire [psum_bw-1:0] out;
+reg  [psum_bw-1:0] expected_out = 0;
+
+integer w_file ; // file handler
+integer w_scan_file ; // file handler
+
+integer x_file ; // file handler
+integer x_scan_file ; // file handler
+
+integer x_dec;
+integer w_dec;
+integer i; 
+integer u; 
+
+function [3:0] w_bin ;
+  input integer  weight ;
+  begin
+
+    if (weight>-1)
+     w_bin[3] = 0;
+    else begin
+     w_bin[3] = 1;
+     weight = weight + 8;
+    end
+
+    if (weight>3) begin
+     w_bin[2] = 1;
+     weight = weight - 4;
+    end
+    else 
+     w_bin[2] = 0;
+
+    if (weight>1) begin
+     w_bin[1] = 1;
+     weight = weight - 2;
+    end
+    else 
+     w_bin[1] = 0;
+
+    if (weight>0) 
+     w_bin[0] = 1;
+    else 
+     w_bin[0] = 0;
+
+  end
+endfunction
+
+
+
+function [3:0] x_bin ;
+
+  input integer  activation ;
+  begin
+
+    if (activation>7) begin
+      x_bin[3] = 1;
+      activation -= 8;
+    end else begin
+      x_bin[3] = 0;
+    end
+
+    if (activation>3) begin
+      x_bin[2] = 1;
+      activation -= 4;
+    end else begin
+      x_bin[2] = 0;
+    end
+
+    if (activation>1) begin
+      x_bin[1] = 1;
+      activation -= 2;
+    end else begin
+      x_bin[1] = 0;
+    end
+
+    if (activation>0) begin
+      x_bin[0] = 1;
+    end else begin
+      x_bin[0] = 0;
+    end
+  end
+endfunction
+
+
+// Below function is for verification
+function [psum_bw-1:0] mac_predicted;
+  input integer activation;
+  input integer  weight;
+  input integer mac_q;
+
+  mac_predicted = mac_q + weight * activation;
+
+endfunction
+
+
+
+mac_wrapper #(.bw(bw), .psum_bw(psum_bw)) mac_wrapper_instance (
+	.clk(clk),
+	.reset(reset), 
+        .a(a), 
+        .b(b),
+        .c(out),
+	.out(out)
+); 
+ 
+
+initial begin 
+
+  w_file = $fopen("b_data.txt", "r");  //weight data
+  x_file = $fopen("a_data.txt", "r");  //activation
+
+  $dumpfile("mac_tb.vcd");
+  $dumpvars(0,mac_tb);
+ 
+  #1 clk = 1'b0;  
+  #1 clk = 1'b1;  
+  #1 clk = 1'b0; reset = 1'b0; a = '0; b = '0; c = '0;
+  #1 clk = 1'b1;
+  #1 clk = 1'b0;  
+  #1 clk = 1'b1;  
+  #1 clk = 1'b0; 
+  #1 clk = 1'b1; 
+  #1 clk = 1'b0; reset = 1'b1;
+  #1 clk = 1'b1;  
+  #1 clk = 1'b0; 
+  #1 clk = 1'b1;
+  #1 clk = 1'b0; 
+ 
+
+  $display("-------------------- Computation start --------------------");
+  
+
+  for (i=0; i<5; i=i+1) begin
+
+     #1 clk = 1'b1;
+     #1 clk = 1'b0;
+
+       for (u=0; u<array_length; u=u+1) begin
+
+         w_scan_file = $fscanf(w_file, "%d\n", w_dec);
+         x_scan_file = $fscanf(x_file, "%d\n", x_dec);
+
+         a[array_length-u-1] = x_bin(x_dec); // unsigned number
+         b[array_length-u-1] = w_bin(w_dec); // signed number
+     
+         expected_out = mac_predicted(x_dec, w_dec, expected_out);
+       end
+
+  end
+
+
+
+  #1 clk = 1'b1;
+  #1 clk = 1'b0;
+
+  $display("-------------------- Computation completed --------------------");
+
+  #10 $finish;
+
+
+end
+
+endmodule
+
+
+
+

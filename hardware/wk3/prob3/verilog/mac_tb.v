@@ -8,6 +8,7 @@ parameter bw = 4;
 parameter psum_bw = 16;
 
 reg clk = 0;
+reg reset = 0;
 
 reg  [bw-1:0] a;
 reg  [bw-1:0] b;
@@ -63,25 +64,57 @@ endfunction
 
 function [3:0] x_bin ;
 
-...
+  input integer  activation ;
+  begin
 
+    if (activation>7) begin
+      x_bin[3] = 1;
+      activation -= 8;
+    end else begin
+      x_bin[3] = 0;
+    end
+
+    if (activation>3) begin
+      x_bin[2] = 1;
+      activation -= 4;
+    end else begin
+      x_bin[2] = 0;
+    end
+
+    if (activation>1) begin
+      x_bin[1] = 1;
+      activation -= 2;
+    end else begin
+      x_bin[1] = 0;
+    end
+
+    if (activation>0) begin
+      x_bin[0] = 1;
+    end else begin
+      x_bin[0] = 0;
+    end
+  end
 endfunction
 
 
 // Below function is for verification
 function [psum_bw-1:0] mac_predicted;
-  
-...
+  input integer activation;
+  input integer  weight;
+  input integer mac_q;
+
+  mac_predicted = mac_q + weight * activation;
 
 endfunction
 
 
 
 mac_wrapper #(.bw(bw), .psum_bw(psum_bw)) mac_wrapper_instance (
-	.clk(clk), 
+	.clk(clk),
+	.reset(reset), 
         .a(a), 
         .b(b),
-        .c(c),
+        .c(out),
 	.out(out)
 ); 
  
@@ -96,7 +129,18 @@ initial begin
  
   #1 clk = 1'b0;  
   #1 clk = 1'b1;  
-  #1 clk = 1'b0;
+  #1 clk = 1'b0; reset = 1'b0; a = '0; b = '0; c = '0;
+  #1 clk = 1'b1;
+  #1 clk = 1'b0;  
+  #1 clk = 1'b1;  
+  #1 clk = 1'b0; 
+  #1 clk = 1'b1; 
+  #1 clk = 1'b0; reset = 1'b1;
+  #1 clk = 1'b1;  
+  #1 clk = 1'b0; 
+  #1 clk = 1'b1;
+  #1 clk = 1'b0; 
+ 
 
   $display("-------------------- Computation start --------------------");
   
@@ -111,9 +155,9 @@ initial begin
 
      a = x_bin(x_dec); // unsigned number
      b = w_bin(w_dec); // signed number
-     c = expected_out;
-
-     expected_out = mac_predicted(a, b, c);
+    
+     
+     expected_out = mac_predicted(x_dec, w_dec, expected_out);
 
   end
 
