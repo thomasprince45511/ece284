@@ -13,6 +13,7 @@ reg clk = 0;
 reg rd = 0;
 reg wr = 0;
 reg  reset = 0;
+reg  rd_stagger = 0;   // 0: all rows read together, 1: row-wise staggered read
 reg [bw*col-1:0] w_vector_bin;
 wire [bw*col-1:0] out;
 wire full, ready;
@@ -68,6 +69,7 @@ l0 #(.bw(bw)) l0_instance (
         .in(w_vector_bin), 
         .out(out), 
         .rd(rd),
+        .rd_stagger(rd_stagger),
         .wr(wr), 
         .o_full(full), 
         .reset(reset), 
@@ -77,11 +79,25 @@ initial begin
 
   w_file = $fopen("b_data.txt", "r");  //weight data
 
-  $dumpfile("l0_tb.vcd");
+  // Select read mode at runtime: vvp compiled/l0_tb +rd_stagger=1
+  if (!$value$plusargs("rd_stagger=%d", rd_stagger))
+    rd_stagger = 0;
+  $display("rd_stagger = %0d", rd_stagger);
+
+  if (rd_stagger)
+    $dumpfile("l0_tb_row_wise.vcd");
+  else
+    $dumpfile("l0_tb_all_row.vcd");
   $dumpvars(0,l0_tb);
  
-  #1 clk = 1'b0;  
-  #1 clk = 1'b1;  
+  // Assert reset for a few cycles
+  reset = 1;
+  for (i=0; i<3; i=i+1) begin
+    #1 clk = 1'b1;
+    #1 clk = 1'b0;
+  end
+  reset = 0;
+  #1 clk = 1'b1;
   #1 clk = 1'b0;
 
   $display("-------------------- 1st Computation start --------------------");
